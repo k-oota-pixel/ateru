@@ -1,0 +1,39 @@
+name: Apply coin rewards
+
+on:
+  push:
+    paths:
+      - '.github/workflows/coin-reward-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Ateru coin reward
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          tag='<script type="module" src="https://k-oota-pixel.github.io/english-playroom/coin-reward.js"></script>'
+          if tag not in s:
+              s=s.replace('</html>',tag+'\n</html>')
+          needle="function showResult(){if(!roundRecorded){roundRecorded=true;window.ateruProgress?.recordClear?.(history.length||5);}"
+          repl="function showResult(){if(!roundRecorded){roundRecorded=true;window.ateruProgress?.recordClear?.(history.length||5);window.EnglishPlayroomCoins?.awardAteru?.(Date.now());}"
+          if 'awardAteru?.(Date.now())' not in s:
+              if needle not in s: raise SystemExit('showResult hook target not found')
+              s=s.replace(needle,repl,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit patch
+        run: |
+          if git diff --quiet -- index.html; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Connect Ateru to shared coin rewards"
+          git push
