@@ -11,6 +11,14 @@
 .syncnote{font-size:9.5px;color:#7b8980;white-space:nowrap}
 @media(max-width:430px){.syncnote{display:none}.authrow{margin-top:-4px}}
 
+
+/* Correct-answer celebration: quick confetti from both bottom corners. */
+.celebration-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:9999}
+.confetti-piece{position:absolute;bottom:-18px;width:8px;height:14px;border-radius:2px;background:var(--c);opacity:0;transform:translate(0,0) rotate(0deg);animation:confetti-pop .9s cubic-bezier(.18,.75,.28,1) forwards}
+.confetti-piece.left{left:18px}.confetti-piece.right{right:18px}
+@keyframes confetti-pop{0%{opacity:0;transform:translate(0,0) rotate(0deg) scale(.8)}8%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(1)}}
+@media(prefers-reduced-motion:reduce){.celebration-layer{display:none}}
+
 </style>
 <main><header><div><div class="brand">アテル<span style="color:#daa63d">.</span></div><div class="tag">THREE HINTS, ONE WORD.</div></div><span class="badge">320のお題からランダム出題</span></header>
 <div class="authrow"><button id="ateruLogin" class="authbtn" type="button" disabled><span id="ateruAuthDot" class="authdot busy"></span><span id="ateruAuthLabel">認証準備中…</span></button><span id="ateruSyncNote" class="syncnote">Firebase接続中</span><button id="ateruLogout" class="logoutbtn" type="button" hidden>ログアウト</button></div><section id="game"><div class="top"><span id="progress"></span><div id="dots" class="dots"></div></div><h1>3つのヒント。答えはなに？</h1><div class="sub">光っている文字を押して、英単語を完成させよう。<br>5問正解でクリア！</div><div id="hints" class="hints"></div><div id="answer" class="answer" aria-label="入力した答え"></div><p id="length" class="sub" style="text-align:center"></p><div id="feedback" class="feedback" role="status" aria-live="polite"></div><div id="keyboard" class="keyboard" aria-label="文字キーボード"></div><div class="sub" style="text-align:center;font-size:12px">使える文字 ＝ 答えの文字 ＋ ダミー4文字<br>同じ文字は何度でも押せます。空白・ハイフンは自動です。</div><div class="actions"><button id="erase" class="btn">1文字消す</button><button id="reset" class="btn">全部消す</button><button id="check" class="btn primary">答え合わせ</button></div><button id="next" class="btn primary hidden" style="width:100%;margin-top:14px">次の問題へ →</button></section><section id="result" class="hidden"></section><div class="footer">ATERU · 3ヒント英単語ゲーム</div></main>
@@ -19,13 +27,30 @@ const DATA=[{"id": 1, "answers": ["pink"], "hints": ["It is a color.", "It is be
 const $=id=>document.getElementById(id);
 const letters=w=>w.replace(/[^a-z]/g,'');
 function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function celebrateCorrect(){
+  if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+  const layer=document.createElement('div');layer.className='celebration-layer';layer.setAttribute('aria-hidden','true');
+  const colors=['#f0b83f','#2e9b79','#e56d73','#668de5','#9a6bd1','#f08b4b'];
+  for(const side of ['left','right']){
+    for(let i=0;i<22;i++){
+      const piece=document.createElement('i');piece.className=`confetti-piece ${side}`;
+      const outward=side==='left'?1:-1;
+      const x=outward*(55+Math.random()*210), y=-(95+Math.random()*270);
+      piece.style.setProperty('--dx',`${x}px`);piece.style.setProperty('--dy',`${y}px`);piece.style.setProperty('--rot',`${(Math.random()*900-450)}deg`);piece.style.setProperty('--c',colors[i%colors.length]);piece.style.animationDelay=`${Math.random()*90}ms`;
+      layer.append(piece);
+    }
+  }
+  document.body.append(layer);setTimeout(()=>layer.remove(),1150);
+}
+
 let questions,index,entry,solved,allowed,history,correctAnswer,roundRecorded=false;
 function start(){questions=shuffle(DATA).slice(0,5);index=0;history=[];roundRecorded=false;$('game').classList.remove('hidden');$('result').classList.add('hidden');load()}
 function load(){entry='';solved=false;correctAnswer='';const q=questions[index];allowed=new Set(q.answers.join('').replace(/[^a-z]/g,''));shuffle([...'abcdefghijklmnopqrstuvwxyz'].filter(x=>!allowed.has(x))).slice(0,4).forEach(x=>allowed.add(x));$('progress').textContent=`QUESTION ${index+1} / 5`;$('dots').replaceChildren();for(let i=0;i<5;i++){const d=document.createElement('span');d.className='dot'+(i<index?' done':i===index?' now':'');$('dots').append(d)}$('hints').replaceChildren();q.hints.forEach((h,i)=>{const d=document.createElement('div');d.className='hint';const n=document.createElement('span');n.className='num';n.textContent=i+1;const t=document.createElement('span');t.textContent=h;d.append(n,t);$('hints').append(d)});$('feedback').textContent='';$('feedback').className='feedback';$('next').classList.add('hidden');$('next').textContent=index===4?'クリア画面へ →':'次の問題へ →';$('keyboard').replaceChildren();['qwertyuiop','asdfghjkl','zxcvbnm'].forEach(chars=>{const row=document.createElement('div');row.className='row';for(const c of chars){const b=document.createElement('button');b.className='key';b.textContent=c.toUpperCase();b.dataset.letter=c;b.disabled=!allowed.has(c);b.setAttribute('aria-label',c.toUpperCase());b.onclick=()=>add(c);row.append(b)}$('keyboard').append(row)});render()}
 function render(){const q=questions[index];let template=q.answers[0];if(solved)template=correctAnswer;else{const exact=q.answers.find(a=>letters(a)===entry);if(exact)template=exact;else if(entry.length>letters(template).length)template=q.answers.reduce((a,b)=>letters(a).length>letters(b).length?a:b)}$('answer').replaceChildren();let n=0;for(const c of template){const s=document.createElement('span');if(/[a-z]/.test(c)){s.className='slot'+(entry[n]?' filled':'');s.textContent=(entry[n++]||'').toUpperCase()}else{s.className='slot separator';s.textContent=c===' '?' ':c}$('answer').append(s)}const sizes=[...new Set(q.answers.map(a=>letters(a).length))];$('length').textContent=solved?'正解：'+correctAnswer:sizes.join(' または ')+'文字'+(template.includes(' ')?'（複数の単語）':'');$('check').disabled=solved||!entry;$('erase').disabled=solved||!entry;$('reset').disabled=solved||!entry}
 function add(c){if(solved||!allowed.has(c))return;const max=Math.max(...questions[index].answers.map(a=>letters(a).length));if(entry.length>=max)return;entry+=c;$('feedback').textContent='';render()}
 function erase(all=false){if(solved)return;entry=all?'':entry.slice(0,-1);$('feedback').textContent='';render()}
-function check(){if(solved||!entry)return;const q=questions[index];correctAnswer=q.answers.find(a=>letters(a)===entry);if(correctAnswer){solved=true;history.push(correctAnswer);$('feedback').className='feedback success';$('feedback').textContent='✓ 正解！ よくできました！';document.querySelectorAll('.key').forEach(b=>b.disabled=true);$('next').classList.remove('hidden');render();$('next').focus()}else{$('feedback').className='feedback error';$('feedback').textContent='もう少し！ ヒントを読んで、もう一度考えよう。'}}
+function check(){if(solved||!entry)return;const q=questions[index];correctAnswer=q.answers.find(a=>letters(a)===entry);if(correctAnswer){solved=true;history.push(correctAnswer);$('feedback').className='feedback success';$('feedback').textContent='✓ 正解！ よくできました！';celebrateCorrect();document.querySelectorAll('.key').forEach(b=>b.disabled=true);$('next').classList.remove('hidden');render();$('next').focus()}else{$('feedback').className='feedback error';$('feedback').textContent='もう少し！ ヒントを読んで、もう一度考えよう。'}}
 $('erase').onclick=()=>erase();$('reset').onclick=()=>erase(true);$('check').onclick=check;$('next').onclick=()=>{if(!solved)return;if(index<4){index++;load()}else{showResult()}};
 function showResult(){if(!roundRecorded){roundRecorded=true;window.ateruProgress?.recordClear?.(history.length||5);window.EnglishPlayroomCoins?.awardAteru?.(Date.now());}$('game').classList.add('hidden');$('result').classList.remove('hidden');$('result').replaceChildren();const wrap=document.createElement('div');wrap.className='clear';wrap.innerHTML='<div class="medal">🏆</div><div class="tag">ALL FIVE COMPLETE!</div><h1>クリア！</h1><p class="sub">5問すべて正解。おめでとう！</p>';const ul=document.createElement('ul');ul.className='review';history.forEach((a,i)=>{const li=document.createElement('li');li.textContent=`${i+1}. ${a}`;const s=document.createElement('span');s.textContent='✓';li.append(s);ul.append(li)});const b=document.createElement('button');b.className='btn primary';b.style.width='100%';b.textContent='もう一度あそぶ →';b.onclick=start;wrap.append(ul,b);$('result').append(wrap);b.focus()}
 document.addEventListener('keydown',e=>{if($('game').classList.contains('hidden')||e.ctrlKey||e.metaKey||e.altKey)return;if(e.key==='Enter'&&e.target.tagName==='BUTTON')return;if(/^[a-z]$/i.test(e.key)){e.preventDefault();add(e.key.toLowerCase())}else if(e.key==='Backspace'){e.preventDefault();erase()}else if(e.key==='Enter'){e.preventDefault();if(solved)$('next').click();else check()}});
