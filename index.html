@@ -14,9 +14,12 @@
 
 /* Correct-answer celebration: quick confetti from both bottom corners. */
 .celebration-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:9999}
-.confetti-piece{position:absolute;bottom:-18px;width:8px;height:14px;border-radius:2px;background:var(--c);opacity:0;transform:translate(0,0) rotate(0deg);animation:confetti-pop .9s cubic-bezier(.18,.75,.28,1) forwards}
-.confetti-piece.left{left:18px}.confetti-piece.right{right:18px}
-@keyframes confetti-pop{0%{opacity:0;transform:translate(0,0) rotate(0deg) scale(.8)}8%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(1)}}
+.confetti-piece{position:absolute;bottom:-18px;width:8px;height:14px;border-radius:2px;background:var(--c);opacity:0;transform:translate(0,0) rotate(0deg);animation:confetti-pop var(--dur,1.9s) cubic-bezier(.18,.75,.28,1) forwards}
+.confetti-piece.left,.celebration-spark.left{left:18px}.confetti-piece.right,.celebration-spark.right{right:18px}
+.celebration-layer.grand .confetti-piece{filter:drop-shadow(0 2px 2px #8a651d44)}
+.celebration-spark{position:absolute;bottom:8px;color:#ffd75f;font-size:20px;font-weight:900;opacity:0;text-shadow:0 1px 5px #fff7c7;animation:celebration-spark var(--dur,2.8s) ease-out forwards}
+@keyframes confetti-pop{0%{opacity:0;transform:translate(0,0) rotate(0deg) scale(.8)}7%{opacity:1}72%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(1)}}
+@keyframes celebration-spark{0%{opacity:0;transform:translate(0,0) scale(.4) rotate(0deg)}10%{opacity:1}65%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.25) rotate(var(--rot))}}
 @media(prefers-reduced-motion:reduce){.celebration-layer{display:none}}
 
 </style>
@@ -28,20 +31,31 @@ const $=id=>document.getElementById(id);
 const letters=w=>w.replace(/[^a-z]/g,'');
 function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 
-function celebrateCorrect(){
+function celebrateCorrect(grand=false){
   if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
-  const layer=document.createElement('div');layer.className='celebration-layer';layer.setAttribute('aria-hidden','true');
-  const colors=['#f0b83f','#2e9b79','#e56d73','#668de5','#9a6bd1','#f08b4b'];
+  const layer=document.createElement('div');layer.className='celebration-layer'+(grand?' grand':'');layer.setAttribute('aria-hidden','true');
+  const colors=['#f0b83f','#2e9b79','#e56d73','#668de5','#9a6bd1','#f08b4b','#ffd86a'];
+  const count=grand?42:24;
+  const duration=grand?'2.8s':'1.9s';
   for(const side of ['left','right']){
-    for(let i=0;i<22;i++){
+    for(let i=0;i<count;i++){
       const piece=document.createElement('i');piece.className=`confetti-piece ${side}`;
       const outward=side==='left'?1:-1;
-      const x=outward*(55+Math.random()*210), y=-(95+Math.random()*270);
-      piece.style.setProperty('--dx',`${x}px`);piece.style.setProperty('--dy',`${y}px`);piece.style.setProperty('--rot',`${(Math.random()*900-450)}deg`);piece.style.setProperty('--c',colors[i%colors.length]);piece.style.animationDelay=`${Math.random()*90}ms`;
+      const x=outward*(50+Math.random()*(grand?330:240)), y=-(110+Math.random()*(grand?440:320));
+      piece.style.setProperty('--dx',`${x}px`);piece.style.setProperty('--dy',`${y}px`);piece.style.setProperty('--rot',`${(Math.random()*1100-550)}deg`);piece.style.setProperty('--c',colors[i%colors.length]);piece.style.setProperty('--dur',duration);piece.style.animationDelay=`${Math.random()*(grand?180:120)}ms`;
+      piece.style.width=`${6+Math.random()*5}px`;piece.style.height=`${10+Math.random()*8}px`;
       layer.append(piece);
     }
+    if(grand){
+      for(let i=0;i<9;i++){
+        const spark=document.createElement('b');spark.className=`celebration-spark ${side}`;spark.textContent=i%2?'✦':'★';
+        const outward=side==='left'?1:-1;
+        spark.style.setProperty('--dx',`${outward*(80+Math.random()*300)}px`);spark.style.setProperty('--dy',`${-(180+Math.random()*380)}px`);spark.style.setProperty('--rot',`${Math.random()*360-180}deg`);spark.style.setProperty('--dur','2.8s');spark.style.animationDelay=`${Math.random()*220}ms`;
+        layer.append(spark);
+      }
+    }
   }
-  document.body.append(layer);setTimeout(()=>layer.remove(),1150);
+  document.body.append(layer);setTimeout(()=>layer.remove(),grand?3300:2300);
 }
 
 let questions,index,entry,solved,allowed,history,correctAnswer,roundRecorded=false;
@@ -50,7 +64,7 @@ function load(){entry='';solved=false;correctAnswer='';const q=questions[index];
 function render(){const q=questions[index];let template=q.answers[0];if(solved)template=correctAnswer;else{const exact=q.answers.find(a=>letters(a)===entry);if(exact)template=exact;else if(entry.length>letters(template).length)template=q.answers.reduce((a,b)=>letters(a).length>letters(b).length?a:b)}$('answer').replaceChildren();let n=0;for(const c of template){const s=document.createElement('span');if(/[a-z]/.test(c)){s.className='slot'+(entry[n]?' filled':'');s.textContent=(entry[n++]||'').toUpperCase()}else{s.className='slot separator';s.textContent=c===' '?' ':c}$('answer').append(s)}const sizes=[...new Set(q.answers.map(a=>letters(a).length))];$('length').textContent=solved?'正解：'+correctAnswer:sizes.join(' または ')+'文字'+(template.includes(' ')?'（複数の単語）':'');$('check').disabled=solved||!entry;$('erase').disabled=solved||!entry;$('reset').disabled=solved||!entry}
 function add(c){if(solved||!allowed.has(c))return;const max=Math.max(...questions[index].answers.map(a=>letters(a).length));if(entry.length>=max)return;entry+=c;$('feedback').textContent='';render()}
 function erase(all=false){if(solved)return;entry=all?'':entry.slice(0,-1);$('feedback').textContent='';render()}
-function check(){if(solved||!entry)return;const q=questions[index];correctAnswer=q.answers.find(a=>letters(a)===entry);if(correctAnswer){solved=true;history.push(correctAnswer);$('feedback').className='feedback success';$('feedback').textContent='✓ 正解！ よくできました！';celebrateCorrect();document.querySelectorAll('.key').forEach(b=>b.disabled=true);$('next').classList.remove('hidden');render();$('next').focus()}else{$('feedback').className='feedback error';$('feedback').textContent='もう少し！ ヒントを読んで、もう一度考えよう。'}}
+function check(){if(solved||!entry)return;const q=questions[index];correctAnswer=q.answers.find(a=>letters(a)===entry);if(correctAnswer){solved=true;history.push(correctAnswer);$('feedback').className='feedback success';$('feedback').textContent='✓ 正解！ よくできました！';celebrateCorrect(index===4);document.querySelectorAll('.key').forEach(b=>b.disabled=true);$('next').classList.remove('hidden');render();$('next').focus()}else{$('feedback').className='feedback error';$('feedback').textContent='もう少し！ ヒントを読んで、もう一度考えよう。'}}
 $('erase').onclick=()=>erase();$('reset').onclick=()=>erase(true);$('check').onclick=check;$('next').onclick=()=>{if(!solved)return;if(index<4){index++;load()}else{showResult()}};
 function showResult(){if(!roundRecorded){roundRecorded=true;window.ateruProgress?.recordClear?.(history.length||5);window.EnglishPlayroomCoins?.awardAteru?.(Date.now());}$('game').classList.add('hidden');$('result').classList.remove('hidden');$('result').replaceChildren();const wrap=document.createElement('div');wrap.className='clear';wrap.innerHTML='<div class="medal">🏆</div><div class="tag">ALL FIVE COMPLETE!</div><h1>クリア！</h1><p class="sub">5問すべて正解。おめでとう！</p>';const ul=document.createElement('ul');ul.className='review';history.forEach((a,i)=>{const li=document.createElement('li');li.textContent=`${i+1}. ${a}`;const s=document.createElement('span');s.textContent='✓';li.append(s);ul.append(li)});const b=document.createElement('button');b.className='btn primary';b.style.width='100%';b.textContent='もう一度あそぶ →';b.onclick=start;wrap.append(ul,b);$('result').append(wrap);b.focus()}
 document.addEventListener('keydown',e=>{if($('game').classList.contains('hidden')||e.ctrlKey||e.metaKey||e.altKey)return;if(e.key==='Enter'&&e.target.tagName==='BUTTON')return;if(/^[a-z]$/i.test(e.key)){e.preventDefault();add(e.key.toLowerCase())}else if(e.key==='Backspace'){e.preventDefault();erase()}else if(e.key==='Enter'){e.preventDefault();if(solved)$('next').click();else check()}});
