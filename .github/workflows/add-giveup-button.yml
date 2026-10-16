@@ -1,0 +1,77 @@
+name: Add give-up button
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-giveup-button.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add give-up flow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          old='<div class="actions"><button id="erase" class="btn">1文字消す</button><button id="reset" class="btn">全部消す</button><button id="check" class="btn primary">答え合わせ</button></div><button id="next" class="btn primary hidden" style="width:100%;margin-top:14px">次の問題へ →</button>'
+          new='<div class="actions"><button id="erase" class="btn">1文字消す</button><button id="reset" class="btn">全部消す</button><button id="check" class="btn primary">答え合わせ</button></div><button id="giveup" class="btn" style="width:100%;margin-top:8px">わからない</button><button id="next" class="btn primary hidden" style="width:100%;margin-top:14px">次の問題へ →</button>'
+          if old not in s: raise SystemExit('button target not found')
+          s=s.replace(old,new,1)
+
+          old='let questions,index,entry,solved,allowed,history,correctAnswer,roundRecorded=false;'
+          new='let questions,index,entry,solved,allowed,history,review,correctAnswer,roundRecorded=false;'
+          if old not in s: raise SystemExit('state target not found')
+          s=s.replace(old,new,1)
+
+          old="function start(){questions=shuffle(DATA).slice(0,5);index=0;history=[];roundRecorded=false;$('game').classList.remove('hidden');$('result').classList.add('hidden');load()}"
+          new="function start(){questions=shuffle(DATA).slice(0,5);index=0;history=[];review=[];roundRecorded=false;$('game').classList.remove('hidden');$('result').classList.add('hidden');load()}"
+          if old not in s: raise SystemExit('start target not found')
+          s=s.replace(old,new,1)
+
+          old="$('next').textContent=index===4?'クリア画面へ →':'次の問題へ →';"
+          new="$('next').textContent=index===4?'結果を見る →':'次の問題へ →';"
+          if old not in s: raise SystemExit('next label target not found')
+          s=s.replace(old,new,1)
+
+          old="$('check').disabled=solved||!entry;$('erase').disabled=solved||!entry;$('reset').disabled=solved||!entry}"
+          new="$('check').disabled=solved||!entry;$('erase').disabled=solved||!entry;$('reset').disabled=solved||!entry;$('giveup').disabled=solved}"
+          if old not in s: raise SystemExit('render target not found')
+          s=s.replace(old,new,1)
+
+          old="if(correctAnswer){solved=true;history.push(correctAnswer);$('feedback').className='feedback success';"
+          new="if(correctAnswer){solved=true;history.push(correctAnswer);review.push({answer:correctAnswer,correct:true});$('feedback').className='feedback success';"
+          if old not in s: raise SystemExit('correct target not found')
+          s=s.replace(old,new,1)
+
+          old="function check(){if(solved||!entry)return;const q=questions[index];correctAnswer=q.answers.find(a=>letters(a)===entry);if(correctAnswer){solved=true;history.push(correctAnswer);review.push({answer:correctAnswer,correct:true});$('feedback').className='feedback success';$('feedback').textContent='✓ 正解！ よくできました！';celebrateCorrect(index===4);document.querySelectorAll('.key').forEach(b=>b.disabled=true);$('next').classList.remove('hidden');render();$('next').focus()}else{$('feedback').className='feedback error';$('feedback').textContent='もう少し！ ヒントを読んで、もう一度考えよう。'}}"
+          new=old+"\nfunction giveUp(){if(solved)return;const q=questions[index];correctAnswer=q.answers[0];solved=true;review.push({answer:correctAnswer,correct:false});$('feedback').className='feedback';$('feedback').textContent='答えは「'+correctAnswer.toUpperCase()+'」です。確認して次へ進もう。';document.querySelectorAll('.key').forEach(b=>b.disabled=true);$('next').classList.remove('hidden');render();$('next').focus()}"
+          if old not in s: raise SystemExit('check block target not found')
+          s=s.replace(old,new,1)
+
+          old="$('erase').onclick=()=>erase();$('reset').onclick=()=>erase(true);$('check').onclick=check;$('next').onclick=()=>{if(!solved)return;if(index<4){index++;load()}else{showResult()}};"
+          new="$('erase').onclick=()=>erase();$('reset').onclick=()=>erase(true);$('check').onclick=check;$('giveup').onclick=giveUp;$('next').onclick=()=>{if(!solved)return;if(index<4){index++;load()}else{showResult()}};"
+          if old not in s: raise SystemExit('handlers target not found')
+          s=s.replace(old,new,1)
+
+          old="function showResult(){if(!roundRecorded){roundRecorded=true;window.ateruProgress?.recordClear?.(history.length||5);window.EnglishPlayroomCoins?.awardAteru?.(Date.now());}$('game').classList.add('hidden');$('result').classList.remove('hidden');$('result').replaceChildren();const wrap=document.createElement('div');wrap.className='clear';wrap.innerHTML='<div class=\"medal\">🏆</div><div class=\"tag\">ALL FIVE COMPLETE!</div><h1>クリア！</h1><p class=\"sub\">5問すべて正解。おめでとう！</p>';const ul=document.createElement('ul');ul.className='review';history.forEach((a,i)=>{const li=document.createElement('li');li.textContent=`${i+1}. ${a}`;const s=document.createElement('span');s.textContent='✓';li.append(s);ul.append(li)});const b=document.createElement('button');b.className='btn primary';b.style.width='100%';b.textContent='もう一度あそぶ →';b.onclick=start;wrap.append(ul,b);$('result').append(wrap);b.focus()}"
+          new="function showResult(){const perfect=history.length===5;if(!roundRecorded){roundRecorded=true;if(perfect){window.ateruProgress?.recordClear?.(5);window.EnglishPlayroomCoins?.awardAteru?.(Date.now());}}$('game').classList.add('hidden');$('result').classList.remove('hidden');$('result').replaceChildren();const wrap=document.createElement('div');wrap.className='clear';wrap.innerHTML=perfect?'<div class=\"medal\">🏆</div><div class=\"tag\">ALL FIVE COMPLETE!</div><h1>クリア！</h1><p class=\"sub\">5問すべて正解。おめでとう！</p>':`<div class=\"medal\">📝</div><div class=\"tag\">ROUND COMPLETE</div><h1>5問終了！</h1><p class=\"sub\">${history.length} / 5 問正解。わからなかった単語も確認しておこう。</p>`;const ul=document.createElement('ul');ul.className='review';review.forEach((r,i)=>{const li=document.createElement('li');li.textContent=`${i+1}. ${r.answer}`;const mark=document.createElement('span');mark.textContent=r.correct?'✓':'確認';li.append(mark);ul.append(li)});const b=document.createElement('button');b.className='btn primary';b.style.width='100%';b.textContent='もう一度あそぶ →';b.onclick=start;wrap.append(ul,b);$('result').append(wrap);b.focus()}"
+          if old not in s: raise SystemExit('result target not found')
+          s=s.replace(old,new,1)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Add give-up button to Ateru"
+          git push
