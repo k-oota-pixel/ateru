@@ -31,31 +31,31 @@ jobs:
           s=s.replace(old_note,new_note,1)
 
           marker='let questions,index,entry,solved,allowed,history,correctAnswer,roundRecorded=false;'
-          helper=r'''function extraHintFor(q){
-  const h=q.hints.join(' ').toLowerCase();
-  if(/this person|this man|this woman|person works|person teaches|person makes|person flies|person tells/.test(h))return 'Think of a job or role a person can have.';
-  if(/you do this|people do this|students do this|you can hear .* this way|when someone is talking/.test(h))return 'The answer is often used as an action word.';
-  if(/wear|clothes|shirt|jacket|shoe|hat|dress|pants|coat/.test(h))return 'You might think about this when getting dressed.';
-  if(/eat|drink|meal|breakfast|lunch|dinner|sweet|fruit|vegetable|spoon|fork|hungry|thirsty/.test(h))return 'You may have this as part of a meal or snack.';
-  if(/part of your|part of the body|on your hands|on your face|your leg|your arm|your head|your foot|your feet/.test(h))return 'It is connected with the human body.';
-  if(/bird|animal|farm|forest|mountain|zoo/.test(h))return 'You may meet or see this in nature or around animals.';
-  if(/train|bus|airport|airplane|road|car|bicycle|bike|travel|trip/.test(h))return 'You may hear or use this word when traveling.';
-  if(/school|student|classroom|teacher|study/.test(h))return 'You may hear or use this word at school.';
-  if(/room|house|home|door|wall|table|chair|bed|kitchen/.test(h))return 'You may see or use this around a home or building.';
-  if(/color/.test(h))return 'This word can describe how something looks.';
-  if(/feeling|feel good|feel bad|happy|sad|angry|afraid/.test(h))return 'This word can describe how someone feels.';
-  if(/people wait here|people go here|people visit|near the sea|place/.test(h))return 'Think of a place people can go to.';
-  if(/you use it|people use it|you use them|people use them/.test(h))return 'It is something people may use in everyday life.';
-  if(/opposite of/.test(h))return 'Think about what kind of situation this word can describe.';
-  return 'Think about a situation where you would hear or use this word.';
-}
-function addFourthHint(q){
-  const d=document.createElement('div');d.className='hint extra';
-  const n=document.createElement('span');n.className='num';n.textContent='4';
-  const t=document.createElement('span');t.textContent=extraHintFor(q);
-  d.append(n,t);$('hints').append(d);
-}
-'''
+          helper="""function extraHintFor(q){
+            const h=q.hints.join(' ').toLowerCase();
+            if(/this person|this man|this woman|person works|person teaches|person makes|person flies|person tells/.test(h))return 'Think of a job or role a person can have.';
+            if(/you do this|people do this|students do this|you can hear .* this way|when someone is talking/.test(h))return 'The answer is often used as an action word.';
+            if(/wear|clothes|shirt|jacket|shoe|hat|dress|pants|coat/.test(h))return 'You might think about this when getting dressed.';
+            if(/eat|drink|meal|breakfast|lunch|dinner|sweet|fruit|vegetable|spoon|fork|hungry|thirsty/.test(h))return 'You may have this as part of a meal or snack.';
+            if(/part of your|part of the body|on your hands|on your face|your leg|your arm|your head|your foot|your feet/.test(h))return 'It is connected with the human body.';
+            if(/bird|animal|farm|forest|mountain|zoo/.test(h))return 'You may meet or see this in nature or around animals.';
+            if(/train|bus|airport|airplane|road|car|bicycle|bike|travel|trip/.test(h))return 'You may hear or use this word when traveling.';
+            if(/school|student|classroom|teacher|study/.test(h))return 'You may hear or use this word at school.';
+            if(/room|house|home|door|wall|table|chair|bed|kitchen/.test(h))return 'You may see or use this around a home or building.';
+            if(/color/.test(h))return 'This word can describe how something looks.';
+            if(/feeling|feel good|feel bad|happy|sad|angry|afraid/.test(h))return 'This word can describe how someone feels.';
+            if(/people wait here|people go here|people visit|near the sea|place/.test(h))return 'Think of a place people can go to.';
+            if(/you use it|people use it|you use them|people use them/.test(h))return 'It is something people may use in everyday life.';
+            if(/opposite of/.test(h))return 'Think about what kind of situation this word can describe.';
+            return 'Think about a situation where you would hear or use this word.';
+          }
+          function addFourthHint(q){
+            const d=document.createElement('div');d.className='hint extra';
+            const n=document.createElement('span');n.className='num';n.textContent='4';
+            const t=document.createElement('span');t.textContent=extraHintFor(q);
+            d.append(n,t);$('hints').append(d);
+          }
+          """
           if marker not in s: raise SystemExit('JS marker not found')
           s=s.replace(marker,helper+marker,1)
 
