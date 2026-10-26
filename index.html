@@ -178,6 +178,7 @@ async function saveCloud(){
 }
 async function syncCloud(user){
   const snap=await getDoc(refFor(user));
+  let needsUpload=!snap.exists();
   if(snap.exists()){
     const c=snap.data()||{};
     stats={
@@ -185,9 +186,11 @@ async function syncCloud(user){
       questionsSolved:Math.max(stats.questionsSolved,Number(c.questionsSolved)||0),
       lastPlayedDate:[stats.lastPlayedDate,typeof c.lastPlayedDate==="string"?c.lastPlayedDate:""].sort().pop()||""
     };
+    needsUpload=stats.gamesCompleted!==(Number(c.gamesCompleted)||0)||stats.questionsSolved!==(Number(c.questionsSolved)||0)||stats.lastPlayedDate!==(typeof c.lastPlayedDate==="string"?c.lastPlayedDate:"");
     writeLocal();
   }
-  await saveCloud();
+  if(needsUpload&&(stats.gamesCompleted||stats.questionsSolved||stats.lastPlayedDate))await saveCloud();
+  else setUI("ok",shortName(user),`☁ ${stats.gamesCompleted}回クリア`);
 }
 window.ateruProgress={
   async recordClear(count=5){
